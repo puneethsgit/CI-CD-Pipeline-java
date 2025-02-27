@@ -550,6 +550,6 @@ This will return a URL with a **NodePort**, which you can open in your browser t
 ---
 
 ## 🎉 Done!
-You have successfully set up **ArgoCD for Continuous Delivery** in your Minikube environment. 🚀
+You have successfully set up **ArgoCD for Continuous Delivery** in your Minikube environment.. 🚀
 
 
