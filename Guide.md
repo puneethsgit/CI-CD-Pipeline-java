@@ -197,7 +197,67 @@ kubectl get svc
 
 This ensures a fully automated CI/CD pipeline for **continuous deployment**. 🚀
 
-### **Explanation of Jenkins Stages: "Build and Push Docker Image" & "Update Deployment File"**  
+# SonarQube Setup
+
+## **🔑 Generating and Configuring SonarQube Token**
+1. Generate a **SonarQube token** from the SonarQube UI.
+2. Add this token as a **SonarQube credential** in Jenkins.
+3. Install the **SonarQube Scanner plugin** in Jenkins.
+
+---
+
+## **🔍 Why Is SonarQube Failing in Jenkins?**
+Your SonarQube instance is **running and accessible at `http://localhost:9000`**, but Jenkins Cannot reach it.
+
+---
+
+## **✅ Solution: Use the Correct SonarQube URL**
+Modify the **SonarQube stage** in your `Jenkinsfile` to use the **host machine's IP (private IP)** instead of `localhost`.
+
+### **🔹 Step 1: Find Your Host Machine's IP**
+Run the following command on the host where Jenkins is running:
+```bash
+ip a | grep inet
+```
+Example output:
+```
+inet 192.XXX.X.1X0/24 brd 192.168.1.255 scope global eth0
+```
+🔹 **Use the extracted IP (e.g., `192.1XX.1.XXX`) in your Jenkins configuration.**
+
+---
+
+### **🔹 Step 2: Update the `Jenkinsfile`**
+Modify the SonarQube stage in your `Jenkinsfile`:
+```groovy
+stage('Static Code Analysis') {
+    environment {
+        SONAR_URL = "http://192.XXX.1.100:9000" // Use your host machine's IP
+    }
+    steps {
+        withCredentials([string(credentialsId: 'sonarqube', variable: 'SONAR_AUTH_TOKEN')]) {
+            sh 'cd spring-boot-app && mvn sonar:sonar -Dsonar.login=$SONAR_AUTH_TOKEN -Dsonar.host.url=${SONAR_URL}'
+        }
+    }
+}
+```
+🔹 **Replace `192.168.1.100` with your actual host machine IP.**
+
+---
+
+### **🔹 Step 3: Restart Jenkins and Retry the Pipeline**
+Restart Jenkins to apply changes:
+```bash
+sudo systemctl restart jenkins
+```
+Then, rerun your pipeline.
+
+
+🚀 **Your SonarQube setup should now work smoothly with Jenkins!**
+
+
+
+# **Explanation of Jenkins Stages: "Build and Push Docker Image" & "Update Deployment File"**  
 
 These two stages handle **containerization, pushing the image to Docker Hub, and updating the Kubernetes deployment file** in GitHub.  
 
