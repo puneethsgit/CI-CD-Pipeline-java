@@ -1,0 +1,377 @@
+# **CI/CD Pipeline with Jenkins, Docker, and Kubernetes**
+
+## **Overview**
+This project demonstrates a **CI/CD pipeline** using **Jenkins, Docker, and Kubernetes** to build, test, and deploy a **Spring Boot application**.
+
+## **Pipeline Workflow**
+1. **Checkout Code** from GitHub.
+2. **Build & Test** the application using Maven.
+3. **Build & Push Docker Image** to Docker Hub.
+4. **Update Kubernetes Deployment File** with the new image version.
+5. **Deploy the Application** in a Kubernetes Cluster.
+
+---
+
+## **Jenkins Pipeline (`Jenkinsfile`)**
+
+```groovy
+pipeline {
+  agent {
+    docker {
+      image 'abhishekf5/maven-abhishek-docker-agent:v1'
+      args '--user root -v /var/run/docker.sock:/var/run/docker.sock'
+    }
+  }
+  stages {
+    stage('Checkout') {
+      steps {
+        sh 'echo passed'
+        //git branch: 'main', url: 'https://github.com/puneethsgit/Java-Applcation-CI-CD'
+      }
+    }
+    stage('Build and Test') {
+      steps {
+        sh 'ls -ltr'
+        sh 'cd spring-boot-app && mvn clean package'
+      }
+    }
+    stage('Build and Push Docker Image') {
+      environment {
+        DOCKER_IMAGE = "puneeth11/newultimate-cicd-pipeline:${BUILD_NUMBER}"
+        REGISTRY_CREDENTIALS = credentials('docker-cred')
+      }
+      steps {
+        script {
+            sh 'cd spring-boot-app && docker build -t ${DOCKER_IMAGE} .'
+            def dockerImage = docker.image("${DOCKER_IMAGE}")
+            docker.withRegistry('https://index.docker.io/v1/', "docker-cred") {
+                dockerImage.push()
+            }
+        }
+      }
+    }
+    stage('Update Deployment File') {
+      environment {
+        GIT_REPO_NAME = "Java-Applcation-CI-CD"
+        GIT_USER_NAME = "puneethsgit"
+      }
+      steps {
+        withCredentials([string(credentialsId: 'github', variable: 'GITHUB_TOKEN')]) {
+          sh '''
+            git config user.email "princepuneeths814@gmail.com"
+            git config user.name "puneethsgit"
+            sed -i "s/replaceImageTag/${BUILD_NUMBER}/g" spring-boot-app-manifests/deployment.yml
+            git add spring-boot-app-manifests/deployment.yml
+            git commit -m "Update deployment image to version ${BUILD_NUMBER}"
+            git push https://${GITHUB_TOKEN}@github.com/${GIT_USER_NAME}/${GIT_REPO_NAME} HEAD:main
+          '''
+        }
+      }
+    }
+  }
+}
+```
+
+### **Pipeline Explanation**
+| **Stage** | **Purpose** |
+|------------|------------|
+| Checkout | Fetches the latest code from GitHub. |
+| Build & Test | Compiles the Java project using Maven and runs tests. |
+| Build & Push Docker Image | Creates a Docker image and pushes it to Docker Hub. |
+| Update Deployment File | Updates `deployment.yml` with the new image tag and pushes it to GitHub. |
+
+---
+
+## **Dockerfile (`Dockerfile`)**
+
+```dockerfile
+FROM adoptopenjdk/openjdk11:alpine-jre
+ARG artifact=target/spring-boot-web.jar
+WORKDIR /opt/app
+COPY ${artifact} app.jar
+ENTRYPOINT ["java","-jar","app.jar"]
+```
+
+### **Dockerfile Explanation**
+- Uses `openjdk11:alpine-jre` as the base image.
+- Copies the built JAR file into the container.
+- Runs the JAR file using Java.
+
+---
+
+## **Kubernetes Deployment (`deployment.yml`)**
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: spring-boot-app
+  labels:
+    app: spring-boot-app
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: spring-boot-app
+  template:
+    metadata:
+      labels:
+        app: spring-boot-app
+    spec:
+      containers:
+      - name: spring-boot-app
+        image: puneeth11/newultimate-cicd-pipeline:2
+        ports:
+        - containerPort: 8080
+```
+
+### **Deployment File Explanation**
+- **Creates a deployment with 2 replicas**.
+- **Uses the Docker image** (`puneeth11/newultimate-cicd-pipeline:2`).
+- **Exposes port 8080** for the application.
+- **Automatically updates the image tag** during deployment.
+
+---
+
+## **Kubernetes Service (`service.yml`)**
+
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: spring-boot-app-service
+spec:
+  type: NodePort
+  ports:
+  - name: http
+    port: 80
+    targetPort: 8080
+    protocol: TCP
+  selector:
+    app: spring-boot-app
+```
+
+### **Service File Explanation**
+- Exposes the application using **NodePort**.
+- Routes traffic from **port 80 → 8080** inside the container.
+- Selects pods labeled `app: spring-boot-app`.
+
+---
+
+## **How Everything Works Together**
+1. **Jenkins builds and tests the Spring Boot application**.
+2. **Docker builds and pushes the image to Docker Hub**.
+3. **Kubernetes pulls the new image and updates the deployment**.
+4. **The application is exposed using a Kubernetes Service**.
+
+---
+
+## **Deployment Steps**
+### **1. Run Jenkins Pipeline**
+- Ensure Jenkins is running and has Docker permissions.
+- Configure **GitHub and Docker credentials** in Jenkins.
+- Trigger a build to execute the pipeline.
+
+### **2. Apply Kubernetes Files**
+```sh
+kubectl apply -f deployment.yml
+kubectl apply -f service.yml
+```
+### **3. Access the Application**
+```sh
+minikube service spring-boot-app-service --url
+```
+OR
+```sh
+kubectl get svc
+```
+
+---
+## **Summary**
+| **Component** | **Description** |
+|------------|------------|
+| Jenkins | Automates CI/CD pipeline execution. |
+| Docker | Builds and pushes the application container. |
+| Kubernetes | Deploys and manages the application. |
+| NodePort Service | Exposes the application externally. |
+
+This ensures a fully automated CI/CD pipeline for **continuous deployment**. 🚀
+
+### **Explanation of Jenkins Stages: "Build and Push Docker Image" & "Update Deployment File"**  
+
+These two stages handle **containerization, pushing the image to Docker Hub, and updating the Kubernetes deployment file** in GitHub.  
+
+---
+
+## **1️⃣ Stage: "Build and Push Docker Image"**  
+This stage is responsible for **building the Docker image** from the JAR file and pushing it to Docker Hub.
+
+### **Environment Variables**  
+```groovy
+environment {
+    DOCKER_IMAGE = "puneeth11/newultimate-cicd-pipeline:${BUILD_NUMBER}"
+    REGISTRY_CREDENTIALS = credentials('docker-cred')
+}
+```
+- **`DOCKER_IMAGE`** – Defines the image name and tag (`BUILD_NUMBER` ensures each build gets a unique tag).  
+  - Example: `puneeth11/newultimate-cicd-pipeline:10` (if `BUILD_NUMBER = 10`)  
+- **`REGISTRY_CREDENTIALS`** – Retrieves Docker Hub credentials from Jenkins using `credentials('docker-cred')`.  
+
+### **Steps (Building & Pushing the Image)**  
+```groovy
+script {
+    sh 'cd spring-boot-app && docker build -t ${DOCKER_IMAGE} .'
+    def dockerImage = docker.image("${DOCKER_IMAGE}")
+    docker.withRegistry('https://index.docker.io/v1/', "docker-cred") {
+        dockerImage.push()
+    }
+}
+```
+
+#### **Step 1: Build Docker Image**
+```sh
+cd spring-boot-app && docker build -t ${DOCKER_IMAGE} .
+```
+- Moves into the `spring-boot-app` directory.  
+- Builds a Docker image using the `Dockerfile`.  
+- The image is tagged as `"puneeth11/newultimate-cicd-pipeline:${BUILD_NUMBER}"`.  
+
+#### **Step 2: Push Docker Image to Docker Hub**
+```groovy
+def dockerImage = docker.image("${DOCKER_IMAGE}")
+docker.withRegistry('https://index.docker.io/v1/', "docker-cred") {
+    dockerImage.push()
+}
+```
+- Uses Jenkins' `docker.image()` to reference the newly built image.  
+- `docker.withRegistry()` authenticates with Docker Hub using `docker-cred`.  
+- Pushes the image to the Docker Hub repository **"puneeth11/newultimate-cicd-pipeline"** with the **`${BUILD_NUMBER}`** tag.  
+
+**Result:**  
+The image is now stored in Docker Hub and can be pulled by Kubernetes.
+
+---
+
+## **2️⃣ Stage: "Update Deployment File"**  
+This stage **updates the Kubernetes deployment file (`deployment.yml`)** to use the newly built Docker image.  
+
+### **Environment Variables**  
+```groovy
+environment {
+    GIT_REPO_NAME = "Java-Applcation-CI-CD"
+    GIT_USER_NAME = "puneethsgit"
+}
+```
+- **`GIT_REPO_NAME`** – Name of the GitHub repository.  
+- **`GIT_USER_NAME`** – GitHub username.  
+
+### **Steps (Updating Kubernetes YAML File in GitHub)**  
+```groovy
+withCredentials([string(credentialsId: 'github', variable: 'GITHUB_TOKEN')]) {
+    sh '''
+        git config user.email "princepuneeths814@gmail.com"
+        git config user.name "puneethsgit"
+        BUILD_NUMBER=${BUILD_NUMBER}
+        sed -i "s/replaceImageTag/${BUILD_NUMBER}/g" spring-boot-app-manifests/deployment.yml
+        git add spring-boot-app-manifests/deployment.yml
+        git commit -m "Update deployment image to version ${BUILD_NUMBER}"
+        git push https://${GITHUB_TOKEN}@github.com/${GIT_USER_NAME}/${GIT_REPO_NAME} HEAD:main
+    '''
+}
+```
+
+#### **Step 1: Authenticate with GitHub**  
+```groovy
+withCredentials([string(credentialsId: 'github', variable: 'GITHUB_TOKEN')])
+```
+- Fetches **GitHub credentials** stored in Jenkins (`github` ID).  
+- Stores the GitHub token in the `GITHUB_TOKEN` variable.  
+
+#### **Step 2: Configure Git User Details**  
+```sh
+git config user.email "princepuneeths814@gmail.com"
+git config user.name "puneethsgit"
+```
+- Configures Git **user details** (used for committing changes).  
+
+#### **Step 3: Update Deployment File with New Image**  
+```sh
+sed -i "s/replaceImageTag/${BUILD_NUMBER}/g" spring-boot-app-manifests/deployment.yml
+```
+- **Finds and replaces** `replaceImageTag` in `deployment.yml` with `${BUILD_NUMBER}`.  
+- Example: If `BUILD_NUMBER=10`, the YAML file updates to:  
+  ```yaml
+  image: puneeth11/newultimate-cicd-pipeline:10
+  ```
+  This ensures Kubernetes pulls the latest image.
+
+#### **Step 4: Commit & Push Changes to GitHub**
+```sh
+git add spring-boot-app-manifests/deployment.yml
+git commit -m "Update deployment image to version ${BUILD_NUMBER}"
+git push https://${GITHUB_TOKEN}@github.com/${GIT_USER_NAME}/${GIT_REPO_NAME} HEAD:main
+```
+- **Adds the updated file** to Git.  
+- **Commits the change** with a message: `"Update deployment image to version ${BUILD_NUMBER}"`.  
+- **Pushes the changes** to the GitHub repository.  
+
+---
+
+### **Final Result**
+✔ Docker image is built & pushed to Docker Hub.  
+✔ `deployment.yml` is updated with the latest image tag.  
+✔ GitHub repository is updated.  
+✔ Kubernetes will now use the latest image when redeploying the application. 
+
+# **Explanation of the `sed` Command:**
+```sh
+sed -i "s/replaceImageTag/${BUILD_NUMBER}/g" spring-boot-app-manifests/deployment.yml
+```
+This command **modifies the `deployment.yml` file** by replacing `replaceImageTag` with the actual **`${BUILD_NUMBER}`** value.
+
+---
+
+### **Breaking It Down:**
+1. **`sed`** → Stream Editor, used for text manipulation.  
+2. **`-i`** → Edits the file **in place** (modifies the file directly).  
+3. **`s/replaceImageTag/${BUILD_NUMBER}/g`**  
+   - **`s/`** → Substitutes text.  
+   - **`replaceImageTag`** → The placeholder text to be replaced in the `deployment.yml` file.  
+   - **`${BUILD_NUMBER}`** → The Jenkins build number (e.g., `10`, `11`, `12` …).  
+   - **`/g`** → **Global replacement**, ensuring all occurrences of `replaceImageTag` are replaced.  
+4. **`spring-boot-app-manifests/deployment.yml`** → The file being modified.
+
+---
+
+### **Example:**
+#### **Before Modification (`deployment.yml`):**
+```yaml
+containers:
+  - name: spring-boot-app
+    image: puneeth11/newultimate-cicd-pipeline:replaceImageTag
+    ports:
+      - containerPort: 8080
+```
+
+#### **Jenkins Runs: (`BUILD_NUMBER=10`)**
+```sh
+sed -i "s/replaceImageTag/10/g" spring-boot-app-manifests/deployment.yml
+```
+
+#### **After Modification (`deployment.yml`):**
+```yaml
+containers:
+  - name: spring-boot-app
+    image: puneeth11/newultimate-cicd-pipeline:10
+    ports:
+      - containerPort: 8080
+```
+
+---
+
+### **Why is this Important?**
+✔ **Ensures Kubernetes always pulls the latest image** when a new deployment happens.  
+✔ **Automates the process** of updating the deployment without manual edits.  
+✔ Works **dynamically with Jenkins**, as each build gets a unique number (`BUILD_NUMBER`).  
+
+Let me know if you need further clarification! 🚀
