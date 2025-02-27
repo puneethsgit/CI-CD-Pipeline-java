@@ -8,7 +8,7 @@ This project demonstrates a **CI/CD pipeline** using **Jenkins, Docker, and Kube
 2. **Build & Test** the application using Maven.
 3. **Build & Push Docker Image** to Docker Hub.
 4. **Update Kubernetes Deployment File** with the new image version.
-5. **Deploy the Application** in a Kubernetes Cluster.
+5. **Deploy the Application** in a Kubernetes Cluster
 
 ---
 
