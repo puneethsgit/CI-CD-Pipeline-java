@@ -434,4 +434,122 @@ containers:
 ✔ **Automates the process** of updating the deployment without manual edits.  
 ✔ Works **dynamically with Jenkins**, as each build gets a unique number (`BUILD_NUMBER`).  
 
-Let me know if you need further clarification! 🚀
+# ArgoCD Setup for Continuous Delivery in Jenkins Pipeline
+
+## Prerequisites
+- A running **Minikube** cluster
+- `kubectl` installed and configured
+- `helm` installed
+- `minikube status` should show that the cluster is running
+
+---
+
+## 1. Install ArgoCD Using OperatorHub.io Documentation
+ArgoCD can be installed using the OperatorHub.io method or by applying a YAML file.
+
+### Option 1: Install via OperatorHub.io
+Follow the instructions from [OperatorHub.io](https://operatorhub.io/operator/argocd).
+
+### Option 2: Install via YAML Manifest
+Create a YAML file (`argocd-basic.yml`) and copy the following contents:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: ArgoCD
+metadata:
+  name: example-argocd
+  labels:
+    example: basic
+spec:
+  server:
+    service:
+      type: NodePort
+```
+
+Apply the YAML file:
+```sh
+kubectl apply -f argocd-basic.yml
+```
+
+Verify ArgoCD installation:
+```sh
+kubectl get pods -n argocd
+```
+
+---
+
+## 2. Change ArgoCD Service Type
+By default, ArgoCD is set to `ClusterIP`. To access it externally, change it to `NodePort`.
+
+Edit the service:
+```sh
+kubectl edit svc example-argocd-server -n argocd
+```
+Change:
+```yaml
+spec:
+  type: NodePort  # Change from ClusterIP to NodePort
+```
+Save and exit.
+
+Expose ArgoCD:
+```sh
+minikube service example-argocd-server -n argocd
+```
+This will return a URL. Open it in your browser to access ArgoCD.
+
+---
+
+## 3. Login to ArgoCD
+Retrieve the admin password:
+```sh
+kubectl get secret example-argocd-cluster -n argocd -o jsonpath="{.data.admin\.password}" | base64 -d
+```
+
+- **Username:** `admin`
+- **Password:** `<decoded password>`
+
+Login to ArgoCD:
+```sh
+argocd login <ARGOCD_URL>:<NODEPORT> --username admin --password <decoded password>
+```
+
+---
+
+## 4. Create a New Project in ArgoCD
+1. Open the ArgoCD UI in a browser using the provided Minikube URL.
+2. Click **New Project**.
+3. Give it a name and assign a namespace (`default` if unsure).
+4. Select the **source code repository** (GitHub repository containing Kubernetes manifests).
+5. Select the **destination cluster** (Minikube cluster suggestion).
+6. Click **Create**.
+
+Verify the project:
+```sh
+kubectl get deploy -n argocd
+kubectl get pods -n argocd
+```
+
+---
+
+## 5. Deploy and Access the Application
+ArgoCD will now automatically sync and deploy applications.
+
+To check deployment:
+```sh
+kubectl get deploy -n default
+kubectl get pods -n default
+```
+
+To access the Spring Boot application:
+```sh
+minikube service spring-boot-app-server-service -n default
+```
+This will return a URL with a **NodePort**, which you can open in your browser to access the deployed application.
+
+---
+
+## 🎉 Done!
+You have successfully set up **ArgoCD for Continuous Delivery** in your Minikube environment. 🚀
+
+
