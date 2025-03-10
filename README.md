@@ -421,66 +421,6 @@ sed -i "s/replaceImageTag/${BUILD_NUMBER}/g" spring-boot-app-manifests/deploymen
   ```
   This ensures Kubernetes pulls the latest image.
 
-## But
-After the first replacement, `replaceImageTag` no longer exists in `deployment.yml`, so running the same `sed` command won't work for the next build (BUILD_NUMBER=2).  
-
-### Solution: Modify the `sed` Command  
-Instead of searching for `replaceImageTag`, modify the script to replace **any existing tag** in the image section.  
-
-#### **Updated `sed` Command:**
-```sh
-sed -i "s|image: puneeth11/newultimate-cicd-pipeline:[^ ]*|image: puneeth11/newultimate-cicd-pipeline:${BUILD_NUMBER}|" spring-boot-app-manifests/deployment.yml        
-```
-
-### **How It Works**
-1. **Finds the existing image tag:**  
-   - It looks for `image: puneeth11/newultimate-cicd-pipeline:<anything_here>`  
-   - `[^ ]*` matches any non-space characters (i.e., the previous version like `1`, `2`, `10`, etc.)  
-   
-2. **Replaces it with the new `BUILD_NUMBER`.**  
-
-### **Example Workflow**
-#### **First Run (BUILD_NUMBER=1)**
-Before:
-```yaml
-containers:
-  - name: spring-boot-app
-    image: puneeth11/newultimate-cicd-pipeline:replaceImageTag
-    ports:
-      - containerPort: 8080
-```
-After running:
-```yaml
-containers:
-  - name: spring-boot-app
-    image: puneeth11/newultimate-cicd-pipeline:1
-    ports:
-      - containerPort: 8080
-```
-
-#### **Second Run (BUILD_NUMBER=2)**
-Before:
-```yaml
-containers:
-  - name: spring-boot-app
-    image: puneeth11/newultimate-cicd-pipeline:1
-    ports:
-      - containerPort: 8080
-```
-After running:
-```yaml
-containers:
-  - name: spring-boot-app
-    image: puneeth11/newultimate-cicd-pipeline:2
-    ports:
-      - containerPort: 8080
-```
-
-### **Why This Works?**
-- The previous version (e.g., `image: ...:1`) is updated dynamically.
-- This ensures the `deployment.yml` is always updated to the latest build version.  
-
-Let me know if you need any modifications! 🚀
 
 #### **Step 4: Commit & Push Changes to GitHub**
 ```sh
@@ -550,6 +490,68 @@ containers:
 ✔ **Ensures Kubernetes always pulls the latest image** when a new deployment happens.  
 ✔ **Automates the process** of updating the deployment without manual edits.  
 ✔ Works **dynamically with Jenkins**, as each build gets a unique number (`BUILD_NUMBER`).  
+
+## But
+After the first replacement, `replaceImageTag` no longer exists in `deployment.yml`, so running the same `sed` command won't work for the next build (BUILD_NUMBER=2).  
+
+### Solution: Modify the `sed` Command  
+Instead of searching for `replaceImageTag`, modify the script to replace **any existing tag** in the image section.  
+
+#### **Updated `sed` Command:**
+```sh
+sed -i "s|image: puneeth11/newultimate-cicd-pipeline:[^ ]*|image: puneeth11/newultimate-cicd-pipeline:${BUILD_NUMBER}|" spring-boot-app-manifests/deployment.yml        
+```
+
+### **How It Works**
+1. **Finds the existing image tag:**  
+   - It looks for `image: puneeth11/newultimate-cicd-pipeline:<anything_here>`  
+   - `[^ ]*` matches any non-space characters (i.e., the previous version like `1`, `2`, `10`, etc.)  
+   
+2. **Replaces it with the new `BUILD_NUMBER`.**  
+
+### **Example Workflow**
+#### **First Run (BUILD_NUMBER=1)**
+Before:
+```yaml
+containers:
+  - name: spring-boot-app
+    image: puneeth11/newultimate-cicd-pipeline:replaceImageTag
+    ports:
+      - containerPort: 8080
+```
+After running:
+```yaml
+containers:
+  - name: spring-boot-app
+    image: puneeth11/newultimate-cicd-pipeline:1
+    ports:
+      - containerPort: 8080
+```
+
+#### **Second Run (BUILD_NUMBER=2)**
+Before:
+```yaml
+containers:
+  - name: spring-boot-app
+    image: puneeth11/newultimate-cicd-pipeline:1
+    ports:
+      - containerPort: 8080
+```
+After running:
+```yaml
+containers:
+  - name: spring-boot-app
+    image: puneeth11/newultimate-cicd-pipeline:2
+    ports:
+      - containerPort: 8080
+```
+
+### **Why This Works?**
+- The previous version (e.g., `image: ...:1`) is updated dynamically.
+- This ensures the `deployment.yml` is always updated to the latest build version.  
+
+Let me know if you need any modifications! 🚀
+
 
 # ArgoCD Setup for Continuous Delivery in Jenkins Pipeline
 
