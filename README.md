@@ -106,7 +106,7 @@ Instead of running the Jenkins pipeline directly on the host machine, you can us
 
 ---
 
-### **1️⃣ Ensures a Clean, Isolated Build Environment**
+### ** Ensures a Clean, Isolated Build Environment**
 - Every pipeline execution runs inside a **fresh container** based on the specified Docker image.
 - Avoids dependency conflicts between different builds.
 - Prevents build failures caused by host system changes.
