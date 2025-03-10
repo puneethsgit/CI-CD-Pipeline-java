@@ -1,7 +1,7 @@
 # **CI/CD Pipeline with Jenkins, Docker, and Kubernetes**
 
 ## **Overview**
-This project demonstrates a **CI/CD pipeline** using **Jenkins, Docker, and Kubernetes** to build, test, and deploy a **Spring Boot application**.
+This project demonstrates a **CI/CD pipeline** using **Jenkins, Docker, and Kubernetes** to build, test, and deploy  **Spring Boot application**.
 
 ## **Pipeline Workflow**
 1. **Checkout Code** from GitHub.
