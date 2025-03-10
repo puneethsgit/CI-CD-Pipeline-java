@@ -72,6 +72,36 @@ pipeline {
 }
 ```
 
+In your Jenkins pipeline, the following section defines the **agent** that Jenkins will use to execute the pipeline:
+
+```groovy
+agent {
+    docker {
+      image 'abhishekf5/maven-abhishek-docker-agent:v1'
+      args '--user root -v /var/run/docker.sock:/var/run/docker.sock'
+    }
+  }
+```
+
+### **Breaking it Down:**
+1. **`agent { docker { ... } }`**  
+   - This tells Jenkins to use a **Docker container** as the agent instead of running the pipeline directly on the Jenkins host.
+
+2. **`image 'abhishekf5/maven-abhishek-docker-agent:v1'`**  
+   - Specifies that Jenkins should pull and run the Docker image `abhishekf5/maven-abhishek-docker-agent:v1`.
+   - This image likely contains all dependencies required for building and testing the application (such as Maven, Java, and Docker CLI).
+
+3. **`args '--user root -v /var/run/docker.sock:/var/run/docker.sock'`**  
+   - `--user root`: Runs the container as the **root** user. This is required in some cases when the container needs elevated permissions.
+   - `-v /var/run/docker.sock:/var/run/docker.sock`: Mounts the Docker daemon socket from the host into the container.  
+     - This allows the Jenkins agent inside the container to communicate with the host’s Docker engine.  
+     - This setup enables **Docker-in-Docker (DinD)**, meaning the pipeline can build and push Docker images.
+
+### **Why Is This Used?**
+- Running Jenkins agents inside a Docker container ensures a **clean, isolated, and reproducible environment** for builds.
+- The mounted Docker socket allows the containerized Jenkins agent to **build and push Docker images** without needing a separate Docker installation inside the container.
+
+
 ### **Pipeline Explanation**
 | **Stage** | **Purpose** |
 |------------|------------|
