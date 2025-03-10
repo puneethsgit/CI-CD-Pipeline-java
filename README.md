@@ -101,6 +101,32 @@ agent {
 - Running Jenkins agents inside a Docker container ensures a **clean, isolated, and reproducible environment** for builds.
 - The mounted Docker socket allows the containerized Jenkins agent to **build and push Docker images** without needing a separate Docker installation inside the container.
 
+### **Why Use Docker as an Agent in Jenkins?**
+Instead of running the Jenkins pipeline directly on the host machine, you can use a **Docker container** as an agent. Here’s why this is beneficial:
+
+---
+
+### **1️⃣ Ensures a Clean, Isolated Build Environment**
+- Every pipeline execution runs inside a **fresh container** based on the specified Docker image.
+- Avoids dependency conflicts between different builds.
+- Prevents build failures caused by host system changes.
+
+
+### **Why Not Run Directly on the Jenkins Host?**
+✅ Running directly on the host **works** but has downsides:
+❌ Dependency conflicts between different builds.  
+❌ Pollutes the Jenkins host with different tool installations.  
+❌ Harder to maintain and upgrade environments.  
+❌ Security risks if multiple jobs modify system files.  
+
+---
+
+### **When Should You Use Docker as an Agent?**
+✅ When your builds need a **customized runtime** (specific versions of Java, Node.js, Python, etc.).  
+✅ When you want to **run builds in isolated environments** to prevent conflicts.  
+✅ When your pipeline involves **building and pushing Docker images**.  
+✅ When you want **portability** and the same build environment everywhere.  
+
 
 ### **Pipeline Explanation**
 | **Stage** | **Purpose** |
