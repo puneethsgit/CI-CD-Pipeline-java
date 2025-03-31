@@ -700,6 +700,47 @@ agent {
 2. **`args '--user root -v /var/run/docker.sock:/var/run/docker.sock'`**  
    - **`--user root`** → Runs the container as the **root** user to avoid permission issues.
    - **`-v /var/run/docker.sock:/var/run/docker.sock`** → Mounts the Docker socket from the host, allowing the container to access the host's Docker daemon.
+  
+     The argument:  
+```groovy
+args '--user root -v /var/run/docker.sock:/var/run/docker.sock'
+```
+is used to modify the behavior of the **Jenkins Docker agent container**. Here's what each part does:
+
+---
+
+### **1️⃣ `--user root`**
+- Runs the container as the **root user**.
+- By default, containers may run as a non-root user, which can cause permission issues when trying to access system resources like Docker or files.
+- Running as **root** ensures the container has the necessary permissions to execute all commands (like Maven builds, Docker builds, and pushing images).
+
+---
+
+### **2️⃣ `-v /var/run/docker.sock:/var/run/docker.sock`**
+- **Mounts the host machine’s Docker socket inside the container.**
+- The `/var/run/docker.sock` file is a **UNIX socket** used to communicate with the Docker daemon on the host machine.
+- By mounting it, the container gets access to the **host's Docker engine**, enabling it to execute Docker commands **as if they were run on the host**.
+
+---
+
+### **Why is this needed?**
+✅ **Without this argument:**
+- The container will not have access to the host's Docker engine.
+- Any `docker build` or `docker push` command inside the container **will fail** because there is no Docker daemon running inside the container itself.
+
+✅ **With this argument:**
+- The container acts like a "remote client" to the host’s Docker daemon.
+- Any `docker` command inside the container (like `docker build` or `docker push`) is executed on the **host's Docker engine**, avoiding the need to install Docker inside the container.
+
+---
+
+### **Summary**
+| Argument | Purpose |
+|----------|---------|
+| `--user root` | Runs the container as root to avoid permission issues. |
+| `-v /var/run/docker.sock:/var/run/docker.sock` | Allows the container to communicate with the host's Docker daemon, enabling it to build and push images. |
+
+Would you like me to update this explanation in the README.md file? 🚀
 
 ### Why is this needed?
 - Since the Jenkins pipeline runs inside a **Docker container**, it does not have a Docker daemon by default.
