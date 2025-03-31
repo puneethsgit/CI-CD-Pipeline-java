@@ -672,3 +672,179 @@ This will return a URL with a **NodePort**, which you can open in your browser t
 You have successfully set up **ArgoCD for Continuous Delivery** in your Minikube environment.. 🚀
 
 
+# NOTE
+# Jenkins Pipeline with Docker and Maven
+
+## Overview
+This document explains the functionality of the provided Jenkinsfile, including the use of Docker and Maven in a Jenkins pipeline. Additionally, it covers alternative setups if Docker is not used as an agent and how to configure Jenkins to run Maven and Docker commands directly.
+
+---
+
+## Jenkinsfile Breakdown
+
+### Docker Agent Configuration
+```groovy
+agent {
+  docker {
+    image 'abhishekf5/maven-abhishek-docker-agent:v1'
+    args '--user root -v /var/run/docker.sock:/var/run/docker.sock'
+  }
+}
+```
+
+### Explanation:
+1. **`image 'abhishekf5/maven-abhishek-docker-agent:v1'`**  
+   - Specifies that the pipeline will run inside a **Docker container**.
+   - The container uses an image that includes **Maven** and **Docker CLI**, reducing the need for installing dependencies on the Jenkins server.
+
+2. **`args '--user root -v /var/run/docker.sock:/var/run/docker.sock'`**  
+   - **`--user root`** → Runs the container as the **root** user to avoid permission issues.
+   - **`-v /var/run/docker.sock:/var/run/docker.sock`** → Mounts the Docker socket from the host, allowing the container to access the host's Docker daemon.
+
+### Why is this needed?
+- Since the Jenkins pipeline runs inside a **Docker container**, it does not have a Docker daemon by default.
+- By mounting `/var/run/docker.sock`, it enables the container to **directly communicate with the host’s Docker daemon**, allowing it to build and push images.
+
+---
+
+## Alternative Setup (Without Docker Agent)
+If you **do not use** the pre-configured Docker image (`abhishekf5/maven-abhishek-docker-agent:v1`), you need to set up Maven and Docker manually on the Jenkins server.
+
+### 1️⃣ Install Maven on Jenkins Server
+#### **On Ubuntu/Debian:**
+```bash
+sudo apt update
+sudo apt install maven -y
+mvn -version  # Verify installation
+```
+#### **On CentOS/RHEL:**
+```bash
+sudo yum install maven -y
+mvn -version  # Verify installation
+```
+
+### 2️⃣ Install the Maven Integration Plugin in Jenkins
+- Go to **Jenkins Dashboard** → **Manage Jenkins** → **Manage Plugins**.
+- Search for **Maven Integration Plugin** and install it.
+
+### 3️⃣ Configure Maven in Jenkins Tools Section
+- Go to **Manage Jenkins** → **Global Tool Configuration**.
+- Under **Maven**, click **Add Maven**.
+- Set:
+  - **Name** → `Maven-3.8.8`
+  - **Installation Directory** (or let Jenkins install automatically).
+- Save the settings.
+
+### 4️⃣ Update Jenkinsfile (Using Installed Maven)
+#### **BEFORE (Using Docker Agent)**
+```groovy
+agent {
+  docker {
+    image 'abhishekf5/maven-abhishek-docker-agent:v1'
+    args '--user root -v /var/run/docker.sock:/var/run/docker.sock'
+  }
+}
+```
+#### **AFTER (Using Installed Maven on Jenkins Server)**
+```groovy
+agent any  // Run on any available Jenkins node
+tools {
+  maven 'Maven-3.8.8'  // Use the configured Maven version
+}
+```
+
+Now, Maven commands will execute successfully in Jenkins pipeline.
+
+---
+
+## Running Docker Commands in Jenkins Pipeline
+If you remove the Docker agent, you must install Docker on the Jenkins server and ensure Jenkins has permission to run Docker commands.
+
+### 1️⃣ Install Docker on Jenkins Server
+#### **On Ubuntu/Debian:**
+```bash
+sudo apt update
+sudo apt install docker.io -y
+sudo systemctl enable docker
+sudo systemctl start docker
+docker --version  # Verify installation
+```
+#### **On CentOS/RHEL:**
+```bash
+sudo yum install docker -y
+sudo systemctl enable docker
+sudo systemctl start docker
+docker --version  # Verify installation
+```
+
+### 2️⃣ Add Jenkins User to Docker Group
+By default, the `jenkins` user does not have permission to run Docker commands. Add it to the `docker` group:
+```bash
+sudo usermod -aG docker jenkins
+sudo systemctl restart jenkins
+```
+✅ Now, Jenkins can execute Docker commands **without needing `sudo`**.
+
+### 3️⃣ Update Jenkinsfile (Without Docker Agent)
+#### **BEFORE (Using Docker Agent)**
+```groovy
+agent {
+  docker {
+    image 'abhishekf5/maven-abhishek-docker-agent:v1'
+    args '--user root -v /var/run/docker.sock:/var/run/docker.sock'
+  }
+}
+```
+#### **AFTER (Using Installed Docker on Jenkins Server)**
+```groovy
+pipeline {
+  agent any  // Run on any available Jenkins node
+  tools {
+    maven 'Maven-3.8.8'  // Use the configured Maven
+  }
+  environment {
+    DOCKER_IMAGE = "puneeth11/newultimate-cicd-pipeline:${BUILD_NUMBER}"
+  }
+  stages {
+    stage('Build Docker Image') {
+      steps {
+        sh 'docker build -t ${DOCKER_IMAGE} .'
+      }
+    }
+    stage('Push to Docker Hub') {
+      steps {
+        withCredentials([string(credentialsId: 'docker-cred', variable: 'DOCKER_PASSWORD')]) {
+          sh '''
+            echo "$DOCKER_PASSWORD" | docker login -u "your-dockerhub-username" --password-stdin
+            docker push ${DOCKER_IMAGE}
+          '''
+        }
+      }
+    }
+  }
+}
+```
+
+---
+
+## ✅ **Steps to Configure Maven in Jenkins Dashboard**
+1. **Go to Jenkins Dashboard (`http://your-jenkins-server:8080`).**
+2. Click on **Manage Jenkins** → **Global Tool Configuration**.
+3. Scroll down to the **Maven** section.
+4. Click **Add Maven** and configure:
+   - **Name**: `Maven-3.8.8` (or any version you installed).
+   - **Installation Method**: Let Jenkins install it automatically or specify a manually installed Maven path.
+5. **Save** the configuration.
+
+### 🔥 **Final Setup Checklist**
+| Step | Required? | Location |
+|------|----------|-----------|
+| Install Maven | ✅ Yes (if not using Docker agent) | Server CLI (`sudo apt install maven -y`) |
+| Configure Maven in Jenkins | ✅ Yes | `Manage Jenkins` → `Global Tool Configuration` |
+| Install Docker | ✅ Yes (if not using Docker agent) | Server CLI (`sudo apt install docker.io -y`) |
+| Add Jenkins to Docker group | ✅ Yes | `sudo usermod -aG docker jenkins` |
+| Update `PATH` variable (if needed) | ⚠️ Maybe | `Manage Jenkins` → `Global Tool Configuration` |
+
+✅ **Once this is done, your Jenkins pipeline will run both Maven and Docker commands successfully!** 🚀
+
+
